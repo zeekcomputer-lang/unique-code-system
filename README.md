@@ -117,7 +117,7 @@ unique-code-system/
 
 - Bootstrap 5.3 + Vanilla JS만 사용 (Tailwind/jQuery/MUI 금지)
 - 모든 코드 출력부에 `.ucs-code` 모노스페이스 적용
-- Prefix 입력: `replace(/[^a-zA-Z]/g,'').toUpperCase()` 강제
+- Prefix 입력: 영문·숫자 1~16자 강제 (`^[A-Za-z0-9]{1,16}$`) + 자동 대문자 변환
 - 알림: Bootstrap Toast 우측 하단 (`alert()` 절대 금지)
 - 파기: Bootstrap Modal + **"결번 복원을 위해 대기열 시퀀스의 원래 순번(제자리)으로 반환됩니다."** 문구
 - 파기된 행: `.ucs-row-revoked` (취소선 + 흐림)
@@ -129,10 +129,11 @@ unique-code-system/
 ## ✅ 검증 완료
 
 - 432개 생성, O/I/0 제외, Z9→1A 경계 정확
-- 의뢰 접수 → 승인 + Prefix=DEV → `DEVA1` 발급
+- 의뢰 접수 → 승인 + Prefix=`APP2024` → `APP2024A1` 발급
 - 파기 → A1이 score 1 **최상단 제자리 복귀** (peek 검증)
-- 강제 채번 `Z9` + `VIP` → `VIPZ9` (`force_issued: true`)
-- 중복 강제 채번 409, Prefix 유효성 위반 422
+- 소문자 입력 `v2` → 자동 대문자 변환 → `V2A2`
+- 강제 채번 `Z9` + `8K` → `8KZ9` (`force_issued: true`)
+- 중복 강제 채번 409, Prefix 유효성 위반(`DEV!`, `개발` 등) 422
 - 대시보드 통계 일치, 정적 자원/API 라운드트립 통과
 
 ---

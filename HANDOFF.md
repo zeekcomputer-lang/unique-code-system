@@ -1,8 +1,20 @@
 # 🔁 HANDOFF — 유니크 코드 통합 관리 시스템
 
 > **인계 대상**: 다음 개발/운영 담당자
-> **작성일**: 2026-05-12
-> **현재 단계**: MVP 4단계 완료 · 로컬 데모 가능 · 운영 전환 전 단계
+> **최종 갱신**: 2026-05-12 (v0.3)
+> **현재 단계**: MVP 4단계 완료 + 운영 피드백 3건 반영 · 로컬 데모 가능 · 운영 전환 전 단계
+> **GitHub**: <https://github.com/zeekcomputer-lang/unique-code-system>
+
+---
+
+## 0. 변경 이력 (Changelog)
+
+| 버전 | SHA | 내용 |
+|------|-----|------|
+| v0.3 | `17a6898` | Prefix 정책 완화: 영문 → **영문+숫자 1~16자** (자동 대문자) |
+| v0.2 | `365242d` | base 코드 입력에 숫자 허용(`#frcBase` 분리), full_code 포맷 **`{prefix}{base}`** (하이픈 제거) |
+| v0.2 | `c0515be` | 기본 포트 변경: 백엔드 `8000→8099`, 프론트 `8080→8989` |
+| v0.1 | `f25f8d9` | Initial MVP (FastAPI + Redis ZSET + Bootstrap 5.3) |
 
 ---
 
@@ -16,6 +28,7 @@
 | 화면 | index / request / admin / dashboard (4종) |
 | API | 11개 엔드포인트 (`/api/requests/*`, `/api/codes/*`, `/api/dashboard`, `/health`) |
 | 동시성 | Redis `ZPOPMIN`/`ZADD nx` 원자성 + JSON I/O `RLock` + atomic write |
+| 기본 포트 | 백엔드 **8099**, 프론트 **8989** |
 
 ---
 
@@ -23,8 +36,10 @@
 
 ```
 projects/unique-code-system/
-├── ui-design-system.md       # 디자인 시스템(Bootstrap 5.3판) — 변경 시 갱신 필수
+├── ui-design-system.md       # 디자인 시스템(Bootstrap 5.3판)
 ├── HANDOFF.md                # 본 문서
+├── README.md                 # 프로젝트 메인
+├── .gitignore
 ├── backend/
 │   ├── app/
 │   │   ├── core/{codes.py, config.py}
@@ -33,16 +48,20 @@ projects/unique-code-system/
 │   │   ├── models/schemas.py
 │   │   ├── api/routes.py
 │   │   └── main.py
-│   ├── data/ucs.json         # 런타임 생성 (gitignore 권장)
+│   ├── data/                 # ucs.json 런타임 자동 생성 (gitignore)
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── run_with_fakeredis.py # ★ Redis 미설치 시 개발용 부트
 │   └── README.md
-└── frontend/
-    ├── index.html · request.html · admin.html · dashboard.html
-    └── assets/
-        ├── css/ucs-theme.css
-        └── js/{ucs-common.js, request.js, admin.js, dashboard.js}
+├── frontend/
+│   ├── index.html · request.html · admin.html · dashboard.html
+│   └── assets/
+│       ├── css/ucs-theme.css
+│       └── js/{ucs-common.js, request.js, admin.js, dashboard.js}
+└── windows/
+    ├── setup.bat
+    ├── start-backend.bat · start-frontend.bat · start-all.bat · stop-all.bat
+    └── README-WINDOWS.md
 ```
 
 ---
@@ -60,14 +79,30 @@ projects/unique-code-system/
 
 ---
 
-## 4. 데이터 모델
+## 4. Prefix 규칙 (v0.3 갱신)
+
+- 정규식: **`^[A-Za-z0-9]{1,16}$`** — 영문(대소문자) + 숫자 허용
+- 입력 시 **자동 대문자 변환** (`v2` → `V2`)
+- 비허용 문자(한글·공백·특수문자)는 클라이언트 입력 즉시 제거 + 서버에서 422
+- 발급 예: `prefix=APP2024` + base `A1` → **`APP2024A1`** (하이픈 없음)
+- 길이: 1~16자 (단, **base 2자리 포함 최종 코드는 최대 18자**)
+
+### 입력 필드 클래스 분리 (중요)
+| 클래스 | 용도 | 자동 변환 |
+|--------|------|-----------|
+| `.ucs-input-prefix` | Prefix 전용 | **있음** (영숫자 외 제거 + 대문자) |
+| `.ucs-input-code` | base 코드 등 시각 스타일 | **없음** (별도 핸들러로 처리) |
+
+---
+
+## 5. 데이터 모델
 
 ### `codes.{BASE_CODE}` (JSON DB)
 ```json
 {
   "code": "A1", "score": 1,
   "status": "WAITING|ACTIVE|REVOKED",
-  "prefix": "DEV", "full_code": "DEVA1",
+  "prefix": "APP2024", "full_code": "APP2024A1",
   "request_id": "REQ-0001",
   "issued_to": "alice", "issued_at": "...", "revoked_at": null,
   "force_issued": false,
@@ -79,9 +114,9 @@ projects/unique-code-system/
 ```json
 {
   "id": "REQ-0001", "requester": "홍길동", "reason": "...",
-  "desired_prefix": "DEV",
+  "desired_prefix": "APP2024",
   "status": "PENDING|APPROVED|REJECTED",
-  "issued_code": "A1", "issued_full_code": "DEVA1",
+  "issued_code": "A1", "issued_full_code": "APP2024A1",
   "created_at": "...", "approved_at": "...", "approver": "admin", "note": null
 }
 ```
@@ -92,7 +127,7 @@ projects/unique-code-system/
 
 ---
 
-## 5. API 명세 (요약)
+## 6. API 명세 (요약)
 
 | Method | Path | 비고 |
 |--------|------|------|
@@ -108,11 +143,13 @@ projects/unique-code-system/
 | POST | `/api/codes/revoke/{code}` | **파기** — 원래 score로 복원 |
 | GET | `/api/dashboard` | 통계 + next_preview |
 
-전체 OpenAPI: 백엔드 기동 후 `http://localhost:8099/docs`
+전체 OpenAPI: 백엔드 기동 후 <http://localhost:8099/docs>
 
 ---
 
-## 6. 로컬 실행 (Linux/macOS/WSL)
+## 7. 로컬 실행
+
+### Linux / macOS / WSL
 
 ```bash
 cd backend
@@ -131,57 +168,78 @@ python -m http.server 8989
 # → http://localhost:8989/index.html
 ```
 
-### Windows 10
-별도 가이드: `windows/README-WINDOWS.md` 와 `windows/*.bat` 스크립트 참조.
+### Windows 10/11
+
+```cmd
+windows\setup.bat       REM 1회: .venv + 의존성
+windows\start-all.bat   REM 백엔드(:8099) + 프론트(:8989) + 브라우저 자동 오픈
+windows\stop-all.bat    REM 포트 점유 프로세스 일괄 종료
+```
+
+자세한 가이드: [`windows/README-WINDOWS.md`](windows/README-WINDOWS.md)
 
 ---
 
-## 7. 환경변수
+## 8. 환경변수
 
 | Key | 기본값 | 설명 |
 |-----|--------|------|
 | `UCS_DEBUG` | `false` | true 시 reload + DEBUG 로그 |
 | `UCS_HOST` | `0.0.0.0` | 백엔드 바인드 |
-| `UCS_PORT` | `8099` (권장) | 백엔드 포트 (`backend\.env`·batch·CLI 어디서든 주입 가능) |
+| `UCS_PORT` | `8099` (Windows 배치) / 코드 기본은 `8000` | 백엔드 포트 |
 | `UCS_REDIS_URL` | `redis://localhost:6379/0` | Redis 접속 |
 | `UCS_REDIS_KEY` | `ucs:code:queue` | ZSET 키 |
 | `UCS_DB_FILE` | `ucs.json` | `backend/data/` 하위 파일명 |
+| `UCS_WEB_PORT` | `8989` (Windows 배치만) | 프론트 정적 서버 포트 |
 
-`.env.example` 참고.
-
----
-
-## 8. 디자인 시스템 (반드시 준수)
-
-- 문서: `ui-design-system.md` (Bootstrap 5.3판)
-- **금지**: Tailwind, MUI, Bootstrap 기본 파랑 그대로 노출, jQuery 사용
-- **필수**:
-  - 모든 코드 출력부에 `.ucs-code` (필요 시 `.ucs-code-primary`)
-  - Prefix 입력: `replace(/[^a-zA-Z]/g,'').toUpperCase()`
-  - 폼 제출 로딩: `UCS.loading.start(btn)`
-  - 알림: `UCS.toast.*` (alert 절대 금지)
-  - 파괴적 액션: Bootstrap Modal + **"결번 복원을 위해 대기열 시퀀스의 원래 순번(제자리)으로 반환됩니다."** 문구
-  - 파기 행: `ucs-row-revoked` 클래스
+> 백엔드 코드 자체의 `UCS_PORT` 기본값은 여전히 `8000`이며, Windows 배치(`start-backend.bat`)에서 `set UCS_PORT=8099`로 주입함. Linux/macOS는 명령행에서 `UCS_PORT=8099 python ...` 형태로 전달.
 
 ---
 
-## 9. 검증 완료 시나리오
+## 9. 디자인 시스템 (반드시 준수)
+
+문서: [`ui-design-system.md`](ui-design-system.md) (Bootstrap 5.3판)
+
+**금지**
+- Tailwind, MUI, Bootstrap 기본 파랑 그대로 노출, jQuery 사용
+
+**필수**
+- 모든 코드 출력부에 `.ucs-code` (필요 시 `.ucs-code-primary`)
+- Prefix 입력: 영숫자 자동 필터 + 대문자 (자동 바인더 또는 `.ucs-input-prefix` 적용)
+- 폼 제출 로딩: `UCS.loading.start(btn)` (스피너 교체 + disabled)
+- 알림: `UCS.toast.*` (alert 절대 금지)
+- 파괴적 액션: Bootstrap Modal + **"결번 복원을 위해 대기열 시퀀스의 원래 순번(제자리)으로 반환됩니다."** 문구
+- 파기 행: `.ucs-row-revoked` (취소선 + 흐림)
+
+### 프론트 ↔ 백엔드 API base 결정 로직 (`ucs-common.js`)
+
+우선순위:
+1. HTML에서 `<script>window.UCS_API_BASE = 'http://localhost:8099';</script>` 주입한 값 (현재 4개 HTML에 모두 적용됨)
+2. 같은 오리진이면 빈 문자열(상대 경로)
+3. `file://` 로 열면 `http://localhost:8099` 폴백
+
+포트 재변경 시 HTML 4개의 주입 줄만 갱신하면 끝.
+
+---
+
+## 10. 검증 완료 시나리오
 
 | # | 시나리오 | 상태 |
 |---|----------|------|
 | 1 | 432개 생성, O/I/0 제외, Z9(216) → 1A(217) 경계 | ✅ |
 | 2 | 의뢰 접수 → PENDING | ✅ |
-| 3 | 의뢰 승인 + Prefix=DEV → DEVA1 | ✅ |
-| 4 | DEVA1 파기 → score 1 제자리 복귀 (peek 최상단 = A1) | ✅ |
-| 5 | 강제 채번 Z9 + VIP → VIPZ9, force_issued=true | ✅ |
-| 6 | 중복 강제 채번 → 409 | ✅ |
-| 7 | Prefix 유효성 위반 → 422 | ✅ |
-| 8 | 대시보드 stats 일치 | ✅ |
+| 3 | 의뢰 승인 + Prefix=`APP2024` → `APP2024A1` 발급 | ✅ |
+| 4 | `APP2024A1` 파기 → score 1 제자리 복귀 (peek 최상단 = A1) | ✅ |
+| 5 | Prefix `v2` (소문자) → 자동 대문자 `V2` 적용 (`V2A2`) | ✅ |
+| 6 | 강제 채번 `Z9` + `8K` → `8KZ9` (force_issued=true) | ✅ |
+| 7 | 강제 채번 base `1A`, `9Z` 등 숫자 시작 코드 입력 가능 | ✅ |
+| 8 | Prefix `DEV!` / `개발` → 422 거부 | ✅ |
 | 9 | 정적 자원 9종 200, API 라운드트립 통과 | ✅ |
+| 10 | 포트 변경(8099/8989) 후 전 화면 정상 동작 | ✅ |
 
 ---
 
-## 10. 알려진 한계 / TODO
+## 11. 알려진 한계 / TODO
 
 ### 한계
 - 인증/권한 없음 — Admin 화면이 누구나 접근 가능
@@ -189,6 +247,7 @@ python -m http.server 8989
 - 의뢰서 REJECT 라우트 미구현 (PENDING/APPROVED만 동작)
 - pytest 정식 스위트 없음 (라운드트립 수동 검증만)
 - 운영용 Docker / systemd unit 미작성
+- 백엔드 코드 자체의 `UCS_PORT` 기본값(8000)과 배치 스크립트 기본값(8099)이 다름 — 운영 일원화 권장
 
 ### 권장 후속 작업
 1. **의뢰서 REJECT API** — `POST /api/requests/{id}/reject` + 사유 기록
@@ -197,19 +256,21 @@ python -m http.server 8989
 4. **Docker Compose** — app + redis + (옵션) nginx 정적 서빙
 5. **이력 화면** — `codes.history[]` 활용한 코드별 타임라인
 6. **백업/스냅샷** — `backend/data/ucs.json` 일/주 단위 스냅샷 보관 정책
-7. **다중 워커 운영** — 현재 단일 프로세스 권장. 워커 늘릴 경우 JSON 쓰기를 Redis 발신 이벤트 큐 + 단일 라이터 패턴으로 전환 필요
+7. **다중 워커 운영** — JSON 쓰기 직렬화 패턴(단일 라이터) 또는 SQLite/PostgreSQL 이전
+8. **백엔드 기본 포트 통일** — `config.py`의 PORT 기본값을 8099로 변경하여 OS 무관 일관성 확보
 
 ---
 
-## 11. 운영 시 주의사항
+## 12. 운영 시 주의사항
 
 - `backend/data/ucs.json`은 **상태 진실 보관소**. 삭제 시 모든 발급 이력 손실.
 - Redis ZSET이 사라지면 `bootstrap()`이 다시 432개를 시드하지만, ACTIVE 코드는 JSON에 남으므로 **JSON 기준으로 정합화 필요** (현재 코드는 ACTIVE 코드를 큐에서 자동 제외하지 않음 — 운영 전환 시 점검 필요).
 - 강제 채번(FORCE_ISSUED)은 history에 기록되지만 별도 감사 로그 채널은 없음 — 운영 시 ELK/CloudWatch 연동 권장.
+- Prefix 길이 16자 + base 2자 = **최종 코드 최대 18자**. 외부 시스템 연동 시 컬럼 폭 확인.
 
 ---
 
-## 12. 빠른 디버깅 팁
+## 13. 빠른 디버깅 팁
 
 ```bash
 # 상태 점검
@@ -224,12 +285,35 @@ redis-cli ZRANGE ucs:code:queue 0 5 WITHSCORES
 redis-cli ZCARD ucs:code:queue
 ```
 
+### 포트 변경하고 싶을 때 (예: 9000/9100)
+1. `windows\start-backend.bat`: `set UCS_PORT=9000`
+2. `windows\start-frontend.bat`: 기본값 변수 `UCS_WEB_PORT=9100`
+3. `windows\start-all.bat`, `stop-all.bat`도 새 포트로 갱신
+4. **`frontend/index.html`, `request.html`, `admin.html`, `dashboard.html`** 의 `window.UCS_API_BASE` 4곳 모두 새 백엔드 포트로 변경 (이게 빠지면 fetch가 옛 포트로 감)
+
 ---
 
-## 13. 연락/참조
+## 14. GitHub 인증 (zeekcomputer-lang)
 
-- 디자인 시스템: `ui-design-system.md`
-- 백엔드 README: `backend/README.md`
-- Windows 가이드: `windows/README-WINDOWS.md`
+| 항목 | 내용 |
+|------|------|
+| 사용자 | `zeekcomputer-lang` |
+| 인증 파일 | `~/.git-credentials` (chmod 600), `~/.bashrc`의 `GH_TOKEN` |
+| 토큰 만료 | **2026-05-19** (7일짜리, 이후 재발급 필요) |
+| 갱신 위치 | <https://github.com/settings/tokens> |
 
-_End of HANDOFF_
+만료 후 새 토큰 수신 시:
+1. `~/.git-credentials` 의 토큰 부분 교체
+2. `~/.bashrc` 의 `GH_TOKEN` 교체
+3. `source ~/.bashrc`
+
+---
+
+## 15. 연락/참조
+
+- 디자인 시스템: [`ui-design-system.md`](ui-design-system.md)
+- 백엔드 README: [`backend/README.md`](backend/README.md)
+- Windows 가이드: [`windows/README-WINDOWS.md`](windows/README-WINDOWS.md)
+- 메인 README: [`README.md`](README.md)
+
+_End of HANDOFF v0.3_
