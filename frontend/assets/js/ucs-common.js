@@ -197,15 +197,19 @@
 
   const loading = { start: startLoading };
 
-  /* ───────────────────────────── Prefix Input (§5.1) ─────────────── */
+  /* ────────────────────────── Prefix Input (§5.1) ─────────────── */
   /**
-   * Prefix 전용 입력 필드에만 영문 강제 + 대문자 + 비허용 문자 즉시 제거.
+   * Prefix 전용 입력 필드 자동 정규화.
    *
-   * 주의:
-   *   - 기본 셀렉터는 .ucs-input-prefix (Prefix 전용).
-   *   - .ucs-input-code 는 시각적 스타일(중앙정렬·모노스페이스)용이며
-   *     자동 변환을 적용하지 않음. base 코드(영문+숫자 2자리) 입력처럼
-   *     숫자가 필요한 필드는 admin.js의 별도 핸들러가 처리.
+   * 규칙:
+   *   - 영문(A-Z, a-z) + 숫자(0-9) 허용
+   *   - 그 외 문자(한글·공백·특수문자)는 타이핑 즉시 제거
+   *   - 입력은 실시간으로 대문자 변환
+   *
+   * 세령:
+   *   - 기본 셀렉터: .ucs-input-prefix
+   *   - .ucs-input-code 는 시각 스타일(중앙정렬·모노스페이스)용 — 자동 변환 없음.
+   *   - base 코드 입력 등 별도 규칙 필요 시 admin.js에서 직접 리스너 연결.
    *
    * @param {string} [selector]
    */
@@ -214,7 +218,7 @@
       if (el.dataset.ucsPrefixBound === '1') return;
       el.dataset.ucsPrefixBound = '1';
       el.addEventListener('input', (e) => {
-        const cleaned = (e.target.value || '').replace(/[^a-zA-Z]/g, '').toUpperCase();
+        const cleaned = (e.target.value || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
         if (e.target.value !== cleaned) e.target.value = cleaned;
       });
     });

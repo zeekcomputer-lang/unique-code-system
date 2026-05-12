@@ -23,13 +23,17 @@ class HealthResponse(BaseModel):
 
 
 # ─────────────────────────── Prefix 검증 ───────────────────────────
-_PREFIX_PATTERN = re.compile(r"^[A-Za-z]{1,16}$")
+# Prefix 규칙:
+#   - 영문(A-Z, a-z) + 숫자(0-9) 허용
+#   - 1~16자
+#   - 자동 대문자 변환
+_PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9]{1,16}$")
 
 
 def _validate_prefix(value: str) -> str:
     v = (value or "").strip().upper()
     if not _PREFIX_PATTERN.match(v):
-        raise ValueError("Prefix는 영문(A-Z)만, 1~16자여야 합니다.")
+        raise ValueError("Prefix는 영문·숫자만 1~16자로 입력해야 합니다.")
     return v
 
 

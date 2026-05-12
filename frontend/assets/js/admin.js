@@ -319,8 +319,8 @@
 
   $issConfirm.addEventListener('click', async () => {
     const prefix = ($issPrefix.value || '').trim().toUpperCase();
-    if (!/^[A-Z]{1,16}$/.test(prefix)) {
-      UCS.toast.warning('Prefix는 영문 1~16자여야 합니다.');
+    if (!/^[A-Z0-9]{1,16}$/.test(prefix)) {
+      UCS.toast.warning('Prefix는 영문·숫자 1~16자로 입력하세요.');
       $issPrefix.focus();
       return;
     }
@@ -389,8 +389,8 @@
       UCS.toast.warning('Base 코드는 2자리여야 합니다.');
       $frcBase.focus(); return;
     }
-    if (!/^[A-Z]{1,16}$/.test(prefix)) {
-      UCS.toast.warning('Prefix는 영문 1~16자여야 합니다.');
+    if (!/^[A-Z0-9]{1,16}$/.test(prefix)) {
+      UCS.toast.warning('Prefix는 영문·숫자 1~16자로 입력하세요.');
       $frcPrefix.focus(); return;
     }
 
