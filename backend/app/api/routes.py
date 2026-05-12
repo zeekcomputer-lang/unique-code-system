@@ -202,7 +202,7 @@ def issue_by_request(
             detail="대기열이 비어 있습니다 (발급 가능 코드 없음)",
         )
     base_code, score = popped
-    full_code = f"{payload.prefix}-{base_code}"
+    full_code = f"{payload.prefix}{base_code}"
 
     try:
         rec = db.mark_issued(
@@ -285,7 +285,7 @@ def force_issue(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    full_code = f"{payload.prefix}-{base_code}"
+    full_code = f"{payload.prefix}{base_code}"
 
     try:
         issued = db.mark_issued(

@@ -129,9 +129,9 @@ unique-code-system/
 ## ✅ 검증 완료
 
 - 432개 생성, O/I/0 제외, Z9→1A 경계 정확
-- 의뢰 접수 → 승인 + Prefix=DEV → `DEV-A1` 발급
+- 의뢰 접수 → 승인 + Prefix=DEV → `DEVA1` 발급
 - 파기 → A1이 score 1 **최상단 제자리 복귀** (peek 검증)
-- 강제 채번 `Z9` + `VIP` → `VIP-Z9` (`force_issued: true`)
+- 강제 채번 `Z9` + `VIP` → `VIPZ9` (`force_issued: true`)
 - 중복 강제 채번 409, Prefix 유효성 위반 422
 - 대시보드 통계 일치, 정적 자원/API 라운드트립 통과
 

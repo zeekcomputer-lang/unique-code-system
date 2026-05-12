@@ -199,10 +199,17 @@
 
   /* ───────────────────────────── Prefix Input (§5.1) ─────────────── */
   /**
-   * Prefix 입력 필드에 영문 강제 + 대문자 + 비허용 문자 즉시 제거.
-   * @param {string} [selector] 기본 'input.ucs-input-code'
+   * Prefix 전용 입력 필드에만 영문 강제 + 대문자 + 비허용 문자 즉시 제거.
+   *
+   * 주의:
+   *   - 기본 셀렉터는 .ucs-input-prefix (Prefix 전용).
+   *   - .ucs-input-code 는 시각적 스타일(중앙정렬·모노스페이스)용이며
+   *     자동 변환을 적용하지 않음. base 코드(영문+숫자 2자리) 입력처럼
+   *     숫자가 필요한 필드는 admin.js의 별도 핸들러가 처리.
+   *
+   * @param {string} [selector]
    */
-  function bindPrefixInputs(selector = 'input.ucs-input-code') {
+  function bindPrefixInputs(selector = 'input.ucs-input-prefix') {
     document.querySelectorAll(selector).forEach((el) => {
       if (el.dataset.ucsPrefixBound === '1') return;
       el.dataset.ucsPrefixBound = '1';

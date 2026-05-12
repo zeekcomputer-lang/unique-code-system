@@ -231,7 +231,7 @@
               발급 Prefix <span class="text-danger">*</span>
             </label>
             <input type="text" id="issPrefix"
-                   class="form-control form-control-lg ucs-input-code"
+                   class="form-control form-control-lg ucs-input-code ucs-input-prefix"
                    maxlength="16" placeholder="DEV" required>
             <div class="form-text text-muted">
               영문(A-Z)만 1~16자 · 자동 대문자 변환
@@ -266,7 +266,7 @@
               <div class="small text-muted text-uppercase mb-2"
                    style="letter-spacing: .08em;">최종 코드 미리보기</div>
               <div class="ucs-code ucs-code-primary fs-3" id="issPreview">
-                ---&#8209;XX
+                ---XX
               </div>
               <div class="small text-muted mt-2">
                 다음 발급 예정 Base 코드:
@@ -322,7 +322,7 @@
               </label>
               <input type="text" id="frcBase"
                      class="form-control form-control-lg ucs-input-code"
-                     maxlength="2" placeholder="A1">
+                     maxlength="2" placeholder="A1" autocomplete="off">
               <div class="form-text text-muted">2자리 (예: A1, 9Z)</div>
             </div>
             <div class="col-6">
@@ -331,7 +331,7 @@
                 Prefix <span class="text-danger">*</span>
               </label>
               <input type="text" id="frcPrefix"
-                     class="form-control form-control-lg ucs-input-code"
+                     class="form-control form-control-lg ucs-input-code ucs-input-prefix"
                      maxlength="16" placeholder="VIP">
               <div class="form-text text-muted">영문 1~16자</div>
             </div>
@@ -363,7 +363,7 @@
               <div class="small text-muted text-uppercase mb-2"
                    style="letter-spacing: .08em;">강제 발급 미리보기</div>
               <div class="ucs-code text-danger fs-3" id="frcPreview">
-                ---&#8209;XX
+                ---XX
               </div>
             </div>
           </div>

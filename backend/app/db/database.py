@@ -225,7 +225,7 @@ class JsonDatabase:
                 raise ValueError(f"이미 ACTIVE 상태인 코드: {code}")
 
             now = _utcnow()
-            full_code = f"{prefix}-{code}"
+            full_code = f"{prefix}{code}"
             rec["status"] = "ACTIVE"
             rec["prefix"] = prefix
             rec["full_code"] = full_code

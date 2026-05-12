@@ -296,7 +296,7 @@
 
   function updateIssuePreview() {
     const p = ($issPrefix.value || '').toUpperCase();
-    $issPreview.textContent = `${p || '---'}-${nextBaseCode}`;
+    $issPreview.textContent = `${p || '---'}${nextBaseCode}`;
     $issNextBase.textContent = nextBaseCode;
   }
 
@@ -369,7 +369,7 @@
   function updateForcePreview() {
     const p = ($frcPrefix.value || '').toUpperCase() || '---';
     const b = ($frcBase.value   || '').toUpperCase() || 'XX';
-    $frcPreview.textContent = `${p}-${b}`;
+    $frcPreview.textContent = `${p}${b}`;
   }
 
   document.querySelector('#forceIssueOpenBtn').addEventListener('click', () => {

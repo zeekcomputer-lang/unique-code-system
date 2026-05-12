@@ -67,7 +67,7 @@ projects/unique-code-system/
 {
   "code": "A1", "score": 1,
   "status": "WAITING|ACTIVE|REVOKED",
-  "prefix": "DEV", "full_code": "DEV-A1",
+  "prefix": "DEV", "full_code": "DEVA1",
   "request_id": "REQ-0001",
   "issued_to": "alice", "issued_at": "...", "revoked_at": null,
   "force_issued": false,
@@ -81,7 +81,7 @@ projects/unique-code-system/
   "id": "REQ-0001", "requester": "홍길동", "reason": "...",
   "desired_prefix": "DEV",
   "status": "PENDING|APPROVED|REJECTED",
-  "issued_code": "A1", "issued_full_code": "DEV-A1",
+  "issued_code": "A1", "issued_full_code": "DEVA1",
   "created_at": "...", "approved_at": "...", "approver": "admin", "note": null
 }
 ```
@@ -171,9 +171,9 @@ python -m http.server 8989
 |---|----------|------|
 | 1 | 432개 생성, O/I/0 제외, Z9(216) → 1A(217) 경계 | ✅ |
 | 2 | 의뢰 접수 → PENDING | ✅ |
-| 3 | 의뢰 승인 + Prefix=DEV → DEV-A1 | ✅ |
-| 4 | DEV-A1 파기 → score 1 제자리 복귀 (peek 최상단 = A1) | ✅ |
-| 5 | 강제 채번 Z9 + VIP → VIP-Z9, force_issued=true | ✅ |
+| 3 | 의뢰 승인 + Prefix=DEV → DEVA1 | ✅ |
+| 4 | DEVA1 파기 → score 1 제자리 복귀 (peek 최상단 = A1) | ✅ |
+| 5 | 강제 채번 Z9 + VIP → VIPZ9, force_issued=true | ✅ |
 | 6 | 중복 강제 채번 → 409 | ✅ |
 | 7 | Prefix 유효성 위반 → 422 | ✅ |
 | 8 | 대시보드 stats 일치 | ✅ |
