@@ -26,12 +26,12 @@
 ```bash
 cd backend
 pip install -r requirements.txt
-pip install fakeredis            # 실 Redis 없을 때
-python run_with_fakeredis.py     # → :8000
+pip install fakeredis                       # 실 Redis 없을 때
+UCS_PORT=8099 python run_with_fakeredis.py  # → :8099
 
 # 다른 터미널
 cd frontend
-python -m http.server 8080       # → http://localhost:8080
+python -m http.server 8989                  # → http://localhost:8989
 ```
 
 ### Windows 10
@@ -98,7 +98,7 @@ unique-code-system/
 | POST | `/api/codes/revoke/{code}` | 파기 → 원래 순번 복원 |
 | GET | `/api/dashboard` | 종합 통계 + next preview |
 
-전체 OpenAPI: 서버 기동 후 <http://localhost:8000/docs>
+전체 OpenAPI: 서버 기동 후 <http://localhost:8099/docs>
 
 ---
 

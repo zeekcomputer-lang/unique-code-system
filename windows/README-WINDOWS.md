@@ -56,7 +56,7 @@ windows\setup.bat
 windows\start-all.bat
 ```
 
-→ 백엔드(:8000)와 프론트엔드(:8080) 콘솔 창이 별도로 열리고, 자동으로 브라우저가 `http://localhost:8080/index.html` 을 엽니다.
+→ 백엔드(:8099)와 프론트엔드(:8989) 콘솔 창이 별도로 열리고, 자동으로 브라우저가 `http://localhost:8989/index.html` 을 엽니다.
 
 ### 3-2. 개별 기동
 
@@ -87,7 +87,7 @@ windows\start-backend.bat
 windows\stop-all.bat
 ```
 
-→ 8000/8080 포트를 점유한 python.exe 프로세스를 `taskkill` 로 종료.
+→ 8099/8989 포트를 점유한 python.exe 프로세스를 `taskkill` 로 종료.
 
 ---
 
@@ -95,12 +95,12 @@ windows\stop-all.bat
 
 | URL | 화면 |
 |-----|------|
-| <http://localhost:8080/index.html> | 메인 분기 |
-| <http://localhost:8080/request.html> | 채번 의뢰 |
-| <http://localhost:8080/admin.html> | Admin 콘솔 |
-| <http://localhost:8080/dashboard.html> | 대시보드 |
-| <http://localhost:8000/docs> | Swagger UI (OpenAPI) |
-| <http://localhost:8000/health> | 헬스 체크 |
+| <http://localhost:8989/index.html> | 메인 분기 |
+| <http://localhost:8989/request.html> | 채번 의뢰 |
+| <http://localhost:8989/admin.html> | Admin 콘솔 |
+| <http://localhost:8989/dashboard.html> | 대시보드 |
+| <http://localhost:8099/docs> | Swagger UI (OpenAPI) |
+| <http://localhost:8099/health> | 헬스 체크 |
 
 ---
 
@@ -109,7 +109,7 @@ windows\stop-all.bat
 ### ❌ "python 명령을 찾을 수 없습니다"
 PATH에 등록되지 않은 경우. Python 재설치 시 **Add Python to PATH** 체크 후 PC 재로그인.
 
-### ❌ "포트 8000/8080 이 이미 사용 중"
+### ❌ "포트 8099/8989 이 이미 사용 중"
 ```cmd
 windows\stop-all.bat
 ```
@@ -128,7 +128,7 @@ chcp 65001
 ```
 
 ### ❌ 방화벽 차단
-사설 네트워크 사용 시 Windows Defender 방화벽이 python.exe의 인바운드를 차단할 수 있음. 첫 실행 시 **허용** 선택. 외부 PC에서 접근 필요 시 인바운드 규칙으로 8080/TCP 허용.
+사설 네트워크 사용 시 Windows Defender 방화벽이 python.exe의 인바운드를 차단할 수 있음. 첫 실행 시 **허용** 선택. 외부 PC에서 접근 필요 시 인바운드 규칙으로 8989/TCP 허용.
 
 ---
 

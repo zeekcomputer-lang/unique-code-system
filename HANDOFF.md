@@ -108,7 +108,7 @@ projects/unique-code-system/
 | POST | `/api/codes/revoke/{code}` | **파기** — 원래 score로 복원 |
 | GET | `/api/dashboard` | 통계 + next_preview |
 
-전체 OpenAPI: 백엔드 기동 후 `http://localhost:8000/docs`
+전체 OpenAPI: 백엔드 기동 후 `http://localhost:8099/docs`
 
 ---
 
@@ -119,16 +119,16 @@ cd backend
 pip install -r requirements.txt
 
 # A) 진짜 Redis 사용
-python -m app.main                       # 또는 uvicorn app.main:app --reload
+UCS_PORT=8099 python -m app.main
 
 # B) Redis 미설치 환경 (개발용 fakeredis)
 pip install fakeredis
-python run_with_fakeredis.py
+UCS_PORT=8099 python run_with_fakeredis.py
 
 # 프론트엔드 정적 서빙
 cd ../frontend
-python -m http.server 8080
-# → http://localhost:8080/index.html
+python -m http.server 8989
+# → http://localhost:8989/index.html
 ```
 
 ### Windows 10
@@ -142,7 +142,7 @@ python -m http.server 8080
 |-----|--------|------|
 | `UCS_DEBUG` | `false` | true 시 reload + DEBUG 로그 |
 | `UCS_HOST` | `0.0.0.0` | 백엔드 바인드 |
-| `UCS_PORT` | `8000` | 백엔드 포트 |
+| `UCS_PORT` | `8099` (권장) | 백엔드 포트 (`backend\.env`·batch·CLI 어디서든 주입 가능) |
 | `UCS_REDIS_URL` | `redis://localhost:6379/0` | Redis 접속 |
 | `UCS_REDIS_KEY` | `ucs:code:queue` | ZSET 키 |
 | `UCS_DB_FILE` | `ucs.json` | `backend/data/` 하위 파일명 |
@@ -213,8 +213,8 @@ python -m http.server 8080
 
 ```bash
 # 상태 점검
-curl http://localhost:8000/health
-curl http://localhost:8000/api/dashboard | python -m json.tool
+curl http://localhost:8099/health
+curl http://localhost:8099/api/dashboard | python -m json.tool
 
 # JSON DB 상태
 cat backend/data/ucs.json | python -m json.tool | less

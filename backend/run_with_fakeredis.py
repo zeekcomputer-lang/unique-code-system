@@ -32,4 +32,7 @@ smod.redis = _RedisModuleShim  # type: ignore[attr-defined]
 logging.getLogger("ucs").info("Using fakeredis (in-process)")
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
+    import os
+    host = os.getenv("UCS_HOST", "0.0.0.0")
+    port = int(os.getenv("UCS_PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=False)

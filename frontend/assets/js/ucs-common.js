@@ -13,10 +13,15 @@
   'use strict';
 
   /* ───────────────────────────── 설정 ───────────────────────────── */
+  // 우선순위:
+  //   1) HTML 측에서 window.UCS_API_BASE 주입한 값 (권장)
+  //      예: <script>window.UCS_API_BASE = 'http://localhost:8099';</script>
+  //   2) 프론트 정적 서버와 백엔드가 같은 오리진이면 '' (상대 경로)
+  //   3) 파일 설명서(file://)로 열면 기본 8099 폴백
   const DEFAULT_API_BASE =
-    (location.port === '8000' || location.protocol === 'file:')
-      ? '' // 동일 오리진(백엔드 직접 서빙)
-      : 'http://localhost:8000';
+    (location.protocol === 'file:')
+      ? 'http://localhost:8099'
+      : '';
 
   const config = {
     apiBase:
