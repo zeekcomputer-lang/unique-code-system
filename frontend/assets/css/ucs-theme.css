@@ -1,0 +1,130 @@
+/* =========================================================
+ * Unique Code System — Common Theme
+ * Bootstrap 5.3 기반 (가이드라인 §1.1 / §2 / §3.5 / §4 / §5.4 준수)
+ * ========================================================= */
+
+:root {
+  /* Brand */
+  --ucs-primary:        #4f46e5;   /* Indigo 600 */
+  --ucs-primary-hover:  #4338ca;
+  --ucs-primary-soft:   #eef2ff;
+
+  /* Surface */
+  --ucs-bg:             #f8fafc;
+  --ucs-surface:        #ffffff;
+  --ucs-surface-alt:    #f8fafc;
+  --ucs-border:         #e2e8f0;
+  --ucs-border-soft:    #f1f5f9;
+
+  /* Text */
+  --ucs-text:           #1e293b;
+  --ucs-text-strong:    #0f172a;
+  --ucs-text-muted:     #64748b;
+  --ucs-text-disabled:  #94a3b8;
+
+  /* Semantic */
+  --ucs-success:        #059669;
+  --ucs-success-soft:   #ecfdf5;
+  --ucs-success-border: #a7f3d0;
+
+  --ucs-danger:         #f43f5e;
+  --ucs-danger-soft:    #fff1f2;
+  --ucs-danger-border:  #fecdd3;
+
+  --ucs-warning:        #d97706;
+  --ucs-warning-soft:   #fffbeb;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+html, body { height: 100%; }
+body {
+  font-family: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  background-color: var(--ucs-bg);
+  color: var(--ucs-text);
+}
+
+/* ── Bootstrap primary 오버라이드 ─────────────────────── */
+.btn-primary {
+  --bs-btn-bg: var(--ucs-primary);
+  --bs-btn-border-color: var(--ucs-primary);
+  --bs-btn-hover-bg: var(--ucs-primary-hover);
+  --bs-btn-hover-border-color: var(--ucs-primary-hover);
+  --bs-btn-active-bg: var(--ucs-primary-hover);
+  --bs-btn-active-border-color: var(--ucs-primary-hover);
+}
+.text-primary   { color: var(--ucs-primary) !important; }
+.bg-primary     { background-color: var(--ucs-primary) !important; }
+.border-primary { border-color: var(--ucs-primary) !important; }
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--ucs-primary);
+  box-shadow: 0 0 0 0.15rem rgba(79, 70, 229, .18);
+}
+
+/* ── 스크롤바 ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* ── 코드 전용 타이포 (§4) ────────────────────────────── */
+.ucs-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+.ucs-code-primary { color: var(--ucs-primary); }
+
+/* ── Prefix / Suffix 입력 (§3.2) ──────────────────────── */
+.ucs-input-code {
+  text-align: center;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  color: var(--ucs-primary);
+  letter-spacing: 0.1em;
+}
+
+/* ── 파기 데이터 행 (§3.5) ────────────────────────────── */
+.ucs-row-revoked            { background-color: rgba(248, 250, 252, .7) !important; }
+.ucs-row-revoked td         { text-decoration: line-through; opacity: .7; }
+
+/* ── 토스트 컨테이너 (§5.4) ──────────────────────────── */
+.ucs-toast-container {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+/* ── 분기 카드 (메인 전용) ───────────────────────────── */
+.ucs-entry-card {
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  cursor: pointer;
+}
+.ucs-entry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 .5rem 1rem rgba(15, 23, 42, .08) !important;
+  border-color: var(--ucs-primary) !important;
+}
+.ucs-entry-card .ucs-entry-icon {
+  width: 64px; height: 64px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 1rem;
+  font-size: 1.75rem;
+}
+
+/* ── 네비게이션 ───────────────────────────────────────── */
+.navbar.ucs-navbar {
+  background-color: var(--ucs-surface);
+  border-bottom: 1px solid var(--ucs-border);
+}
+.ucs-navbar .navbar-brand {
+  font-weight: 700;
+  color: var(--ucs-text-strong);
+}
+.ucs-navbar .navbar-brand .brand-mark {
+  color: var(--ucs-primary);
+}

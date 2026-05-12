@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대시보드 · Unique Code System</title>
+
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap"
+        rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/ucs-theme.css">
+
+  <style>
+    /* 대시보드 카드 좌측 컬러 바 */
+    .ucs-stat-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .ucs-stat-card::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: var(--bar-color, var(--ucs-primary));
+    }
+    .ucs-stat-icon {
+      width: 44px; height: 44px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: .75rem;
+      font-size: 1.25rem;
+    }
+    /* 게이지 */
+    .ucs-progress {
+      height: 8px;
+      background-color: var(--ucs-border-soft);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .ucs-progress-bar {
+      height: 100%;
+      background-color: var(--ucs-primary);
+      transition: width .4s ease;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── Navbar ───────────────────────────────────── -->
+  <nav class="navbar ucs-navbar py-3">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="index.html">
+        <span class="brand-mark"><i class="fa-solid fa-hashtag"></i></span>
+        <span>Unique Code System</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle
+                     fw-bold text-uppercase rounded-1 px-2 py-1 ms-2"
+              style="font-size: 11px; letter-spacing: .04em; background-color: var(--ucs-primary-soft) !important;">
+          DASHBOARD
+        </span>
+      </a>
+      <div class="d-flex align-items-center gap-2">
+        <span class="small text-muted me-2 d-none d-md-inline" id="lastUpdated">—</span>
+        <button type="button" id="autoRefreshBtn"
+                class="btn btn-outline-secondary btn-sm fw-medium px-3"
+                aria-pressed="false">
+          <i class="fa-solid fa-rotate"></i>
+          <span id="autoRefreshLabel">자동 새로고침</span>
+        </button>
+        <button type="button" id="refreshNowBtn"
+                class="btn btn-outline-secondary btn-sm fw-medium px-3">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+        <a href="admin.html"
+           class="btn btn-outline-secondary btn-sm fw-medium px-3">
+          <i class="fa-solid fa-user-shield"></i> Admin
+        </a>
+        <a href="index.html"
+           class="btn btn-outline-secondary btn-sm fw-medium px-3">
+          <i class="fa-solid fa-arrow-left"></i> 메인
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid px-4 py-4">
+
+    <!-- Header -->
+    <div class="mb-4">
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="fa-solid fa-gauge-high text-primary me-2"></i>대시보드
+      </h1>
+      <p class="text-muted small mb-0">
+        총 432개 코드 풀의 현황과 채번 의뢰 흐름을 실시간으로 확인합니다.
+      </p>
+    </div>
+
+    <!-- 시맨틱 카드 (Primary / Success / Warning / Danger) -->
+    <div class="row g-3 mb-4">
+
+      <!-- Total -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card ucs-stat-card shadow-sm border rounded-3 h-100"
+             style="--bar-color: var(--ucs-primary);">
+          <div class="card-body p-3 d-flex align-items-center gap-3">
+            <div class="ucs-stat-icon"
+                 style="background-color: var(--ucs-primary-soft); color: var(--ucs-primary);">
+              <i class="fa-solid fa-hashtag"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="small text-muted text-uppercase mb-1"
+                   style="letter-spacing:.06em;">총 코드</div>
+              <div class="ucs-code ucs-code-primary fs-3" data-k="total">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active (Success) -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card ucs-stat-card shadow-sm border rounded-3 h-100"
+             style="--bar-color: var(--ucs-success);">
+          <div class="card-body p-3 d-flex align-items-center gap-3">
+            <div class="ucs-stat-icon bg-success-subtle text-success">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="small text-muted text-uppercase mb-1"
+                   style="letter-spacing:.06em;">활성 (ACTIVE)</div>
+              <div class="ucs-code text-success fs-3" data-k="active">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remaining (Warning) -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card ucs-stat-card shadow-sm border rounded-3 h-100"
+             style="--bar-color: var(--ucs-warning);">
+          <div class="card-body p-3 d-flex align-items-center gap-3">
+            <div class="ucs-stat-icon bg-warning-subtle text-warning">
+              <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="small text-muted text-uppercase mb-1"
+                   style="letter-spacing:.06em;">잔여 대기</div>
+              <div class="ucs-code text-warning fs-3" data-k="remaining">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revoked (Danger) -->
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card ucs-stat-card shadow-sm border rounded-3 h-100"
+             style="--bar-color: var(--ucs-danger);">
+          <div class="card-body p-3 d-flex align-items-center gap-3">
+            <div class="ucs-stat-icon bg-danger-subtle text-danger">
+              <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="small text-muted text-uppercase mb-1"
+                   style="letter-spacing:.06em;">파기 (REVOKED)</div>
+              <div class="ucs-code text-danger fs-3" data-k="revoked">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 사용률 + Redis 상태 -->
+    <div class="row g-3 mb-4">
+
+      <!-- 사용률 게이지 -->
+      <div class="col-12 col-lg-8">
+        <div class="card shadow-sm border rounded-3 h-100">
+          <div class="card-header bg-light py-3 px-4">
+            <h2 class="h6 fw-semibold m-0 text-dark">
+              <i class="fa-solid fa-chart-pie me-2 text-primary"></i>코드 사용률
+            </h2>
+          </div>
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-end mb-2">
+              <div>
+                <div class="small text-muted">활성 / 총</div>
+                <div>
+                  <span class="ucs-code text-success fs-4" data-k="active">—</span>
+                  <span class="text-muted">/</span>
+                  <span class="ucs-code text-dark fs-5" data-k="total">—</span>
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="small text-muted">사용률</div>
+                <div class="ucs-code ucs-code-primary fs-3" data-k="usage_pct">—</div>
+              </div>
+            </div>
+            <div class="ucs-progress">
+              <div class="ucs-progress-bar" id="usageBar" style="width: 0%"></div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="row text-center small">
+              <div class="col-3">
+                <div class="text-muted text-uppercase mb-1"
+                     style="letter-spacing:.06em;">총</div>
+                <div class="ucs-code text-dark fs-5" data-k="total">—</div>
+              </div>
+              <div class="col-3">
+                <div class="text-muted text-uppercase mb-1"
+                     style="letter-spacing:.06em;">활성</div>
+                <div class="ucs-code text-success fs-5" data-k="active">—</div>
+              </div>
+              <div class="col-3">
+                <div class="text-muted text-uppercase mb-1"
+                     style="letter-spacing:.06em;">대기</div>
+                <div class="ucs-code text-warning fs-5" data-k="waiting">—</div>
+              </div>
+              <div class="col-3">
+                <div class="text-muted text-uppercase mb-1"
+                     style="letter-spacing:.06em;">파기</div>
+                <div class="ucs-code text-danger fs-5" data-k="revoked">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 시스템 상태 -->
+      <div class="col-12 col-lg-4">
+        <div class="card shadow-sm border rounded-3 h-100">
+          <div class="card-header bg-light py-3 px-4">
+            <h2 class="h6 fw-semibold m-0 text-dark">
+              <i class="fa-solid fa-server me-2 text-primary"></i>시스템 상태
+            </h2>
+          </div>
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted small">Redis</span>
+              <span id="redisBadge"
+                    class="badge rounded-1 px-2 py-1 fw-bold text-uppercase
+                           bg-secondary-subtle text-secondary border border-secondary-subtle"
+                    style="font-size: 11px;">—</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted small">큐 잔여</span>
+              <span class="ucs-code text-dark" data-k="remaining">—</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted small">의뢰 PENDING</span>
+              <span class="ucs-code text-warning" data-k="req_pending">—</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="text-muted small">의뢰 APPROVED</span>
+              <span class="ucs-code text-success" data-k="req_approved">—</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted small">의뢰 REJECTED</span>
+              <span class="ucs-code text-danger" data-k="req_rejected">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 다음 발급 예정 -->
+    <div class="card shadow-sm border rounded-3 overflow-hidden mb-4">
+      <div class="card-header bg-light d-flex justify-content-between
+                  align-items-center py-3 px-4">
+        <h2 class="h6 fw-semibold m-0 text-dark">
+          <i class="fa-solid fa-forward-step me-2 text-primary"></i>
+          다음 발급 예정 코드
+          <span class="text-muted fw-normal small ms-1">(상위 5)</span>
+        </h2>
+      </div>
+      <div class="card-body p-4">
+        <div class="d-flex flex-wrap gap-2" id="nextPreview">
+          <span class="text-muted small">로딩 중…</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="container-fluid px-4 py-4 text-center text-muted small">
+    © Unique Code System · Dashboard
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/js/ucs-common.js"></script>
+  <script src="assets/js/dashboard.js"></script>
+</body>
+</html>
