@@ -60,6 +60,36 @@ UCS_PORT=9000 bash linux/start.sh
 
 ---
 
+## 2-1. 의존성 관리 & 사내 PyPI 프록시
+
+- **백엔드:** `backend/requirements.txt` (fastapi / uvicorn[standard] / pydantic 3개, SQLite 는 표준 라이브러리). `setup.sh` 가 venv 생성 후 `pip install` 로 **자동 다운로드**.
+- **프론트엔드:** Bootstrap/FontAwesome/Noto Sans KR 는 CDN 로드(브라우저가 페이지 열 때). 사내에서 해당 CDN 이 허용된 것을 전제로 합니다. (차단 환경이면 로컬 벤더링 필요 — 별도 요청)
+
+### 사내 PyPI 프록시/인덱스 경유
+
+공용 PyPI 대신 **사내 인덱스/프록시**를 써야 하는 경우, 아래 환경변수를 지정한 뒤 `setup.sh` 를 실행하면 됩니다. (별도 코드 수정 불필요)
+
+```bash
+export UCS_PIP_INDEX_URL="https://<사내 PyPI 주소>/simple"   # 예: https://pypi.corp.local/simple
+export UCS_PIP_TRUSTED_HOST="<사내 PyPI 호스트>"            # http 미러/사설 인증서일 때 (예: pypi.corp.local)
+# (선택) 보조 인덱스
+# export UCS_PIP_EXTRA_INDEX_URL="https://<보조 인덱스>/simple"
+# (선택) 프록시가 필요하면 표준 변수도 그대로 사용됨
+# export HTTPS_PROXY="http://<프록시>:<포트>"
+
+bash linux/setup.sh
+```
+
+- 위 변수를 지정하지 않으면 기본 공용 PyPI 를 사용합니다.
+- 영구 적용을 원하면 `~/.config/pip/pip.conf` 에 지정해도 됩니다:
+  ```ini
+  [global]
+  index-url = https://<사내 PyPI 주소>/simple
+  trusted-host = <사내 PyPI 호스트>
+  ```
+
+---
+
 ## 3. 🌐 같은 통신망(LAN) 다른 PC 에서 접속하기
 
 서버는 `0.0.0.0:8099` 로 바인딩되어 있습니다. 접속 방식은 **운영 서버 형태**에 따라 갈립니다.

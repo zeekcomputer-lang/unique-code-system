@@ -19,8 +19,15 @@ if errorlevel 1 goto VENVFAIL
 
 echo [UCS] 3) 의존성 설치
 call ".venv\Scripts\activate.bat"
-python -m pip install --upgrade pip
-python -m pip install -r backend\requirements.txt
+REM 사내 PyPI 프록시/인덱스 경유(선택): 아래 환경변수를 미리 set 하면 자동 반영
+REM   set UCS_PIP_INDEX_URL=https://pypi.corp.local/simple
+REM   set UCS_PIP_TRUSTED_HOST=pypi.corp.local
+set PIP_OPT=
+if not "%UCS_PIP_INDEX_URL%"=="" set PIP_OPT=%PIP_OPT% --index-url %UCS_PIP_INDEX_URL%
+if not "%UCS_PIP_EXTRA_INDEX_URL%"=="" set PIP_OPT=%PIP_OPT% --extra-index-url %UCS_PIP_EXTRA_INDEX_URL%
+if not "%UCS_PIP_TRUSTED_HOST%"=="" set PIP_OPT=%PIP_OPT% --trusted-host %UCS_PIP_TRUSTED_HOST%
+python -m pip install %PIP_OPT% --upgrade pip
+python -m pip install %PIP_OPT% -r backend\requirements.txt
 if errorlevel 1 goto PIPFAIL
 
 echo [UCS] 4) 데이터 폴더

@@ -34,8 +34,25 @@ fi
 # 3) 의존성 설치
 # shellcheck disable=SC1091
 source "$VENV/bin/activate"
-python -m pip install --upgrade pip >/dev/null
-python -m pip install -r "$ROOT_DIR/backend/requirements.txt"
+
+# 사내 PyPI 프록시/인덱스 경유 (선택)
+#   UCS_PIP_INDEX_URL       내부 인덱스 URL (예: https://pypi.corp.local/simple)
+#   UCS_PIP_TRUSTED_HOST    http 미러/사설 인증서일 때 신뢰 호스트 (예: pypi.corp.local)
+#   UCS_PIP_EXTRA_INDEX_URL 보조 인덱스 (선택)
+#   또는 표준 HTTP_PROXY / HTTPS_PROXY 환경변수도 그대로 존중됨.
+PIP_ARGS=()
+[ -n "${UCS_PIP_INDEX_URL:-}" ]       && PIP_ARGS+=(--index-url "$UCS_PIP_INDEX_URL")
+[ -n "${UCS_PIP_EXTRA_INDEX_URL:-}" ] && PIP_ARGS+=(--extra-index-url "$UCS_PIP_EXTRA_INDEX_URL")
+[ -n "${UCS_PIP_TRUSTED_HOST:-}" ]    && PIP_ARGS+=(--trusted-host "$UCS_PIP_TRUSTED_HOST")
+[ -n "${UCS_PIP_INDEX_URL:-}" ] && echo "[UCS] pip index: $UCS_PIP_INDEX_URL"
+
+if [ ${#PIP_ARGS[@]} -gt 0 ]; then
+  python -m pip install "${PIP_ARGS[@]}" --upgrade pip >/dev/null
+  python -m pip install "${PIP_ARGS[@]}" -r "$ROOT_DIR/backend/requirements.txt"
+else
+  python -m pip install --upgrade pip >/dev/null
+  python -m pip install -r "$ROOT_DIR/backend/requirements.txt"
+fi
 
 # 4) 데이터 폴더
 mkdir -p "$ROOT_DIR/backend/data" "$SCRIPT_DIR/logs"

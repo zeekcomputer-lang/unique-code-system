@@ -20,6 +20,17 @@ cd C:\projects\unique-code-system
 windows\setup.bat
 ```
 - `.venv` 생성 + `backend\requirements.txt` 설치 + `backend\data\` 생성.
+- 의존성: `fastapi` / `uvicorn[standard]` / `pydantic` 3개 (SQLite 는 표준 라이브러리). 프론트는 Bootstrap/FontAwesome/Noto Sans KR 를 CDN 로드(사내 허용 전제).
+
+### 사내 PyPI 프록시/인덱스 경유 (필요 시)
+공용 PyPI 대신 사내 인덱스를 써야 하면, `setup.bat` 실행 전에 환경변수를 지정하면 자동 반영됩니다.
+```cmd
+set UCS_PIP_INDEX_URL=https://pypi.corp.local/simple
+set UCS_PIP_TRUSTED_HOST=pypi.corp.local
+REM (선택) set UCS_PIP_EXTRA_INDEX_URL=...  /  set HTTPS_PROXY=http://프록시:포트
+windows\setup.bat
+```
+지정하지 않으면 기본 공용 PyPI 를 사용합니다.
 
 ---
 
