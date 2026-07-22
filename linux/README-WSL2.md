@@ -70,40 +70,40 @@ UCS_PORT=9000 bash linux/start.sh
 http://<서버 고정 IP>:8099/
 ```
 
-### 케이스 B) 운영 서버가 "Windows + WSL2" 인 경우 — **연결 룰 1개 필요**
+### 케이스 B) 운영 서버가 "Windows + WSL2" 인 경우
 
-WSL2 는 기본 **NAT 모드**라, WSL 안의 서버는 자체 가상 IP 를 가집니다.
-- Windows **자신**에서 `localhost:8099` → WSL 로 자동 전달됨(이건 자동).
-- 그러나 **다른 PC → Windows고정IP:8099** 는 기본적으로 WSL 로 전달되지 않습니다.
+WSL2 네트워킹 방식에 따라 갈립니다.
 
-→ 아래 **둘 중 하나**로 노출합니다.
+**(B-1) mirrored networking — ✅ 현 채택 방식 (권장, 추가 룰 불필요)**
 
-**(B-1) portproxy (Win10/11 모두 가능, 권장)**
-
-관리자 PowerShell 에서 (프로젝트의 헬퍼 사용):
-```powershell
-powershell -ExecutionPolicy Bypass -File windows\wsl-portproxy.ps1 -Port 8099
-```
-- `WindowsIP:8099 → WSL_IP:8099` 포워딩 + 방화벽 인바운드 허용을 자동 설정합니다.
-- **WSL 재기동 시 WSL IP 가 바뀌므로**, 부팅/WSL 재시작 후 다시 실행해야 합니다.
-  (작업 스케줄러 "로그온 시" 트리거로 등록 권장)
-- 해제: `... wsl-portproxy.ps1 -Remove`
-
-**(B-2) mirrored networking (Windows 11 최신 빌드)**
-
-`C:\Users\<사용자>\.wslconfig` 에 추가 후 `wsl --shutdown`:
+`C:\Users\<사용자>\.wslconfig` 에 추가 후 `wsl --shutdown` (그리고 WSL 재기동):
 ```ini
 [wsl2]
 networkingMode=mirrored
 ```
-- WSL 이 호스트 네트워크를 공유 → **portproxy 없이** `WindowsIP:8099` 로 바로 접속.
+- WSL 이 **Windows 호스트의 네트워크/IP 를 그대로 공유**합니다.
+- WSL 안에서 `0.0.0.0:8099` 로 바인딩하면 (start.sh 기본) **다른 PC 가 `WindowsIP:8099` 로 바로 접속** 가능.
+- **portproxy 불필요**, WSL IP 변동 문제도 없음 (호스트 IP 사용).
+- 요구: Windows 11 22H2+ (최신 빌드).
+- 확인: WSL 안 `hostname -I` 결과가 Windows LAN IP 와 같은 대역/동일 IP 로 나오면 mirrored 적용된 것.
 
-접속 주소(양 케이스 공통):
+**(B-2) portproxy — NAT 모드용 대안 (Win10 또는 mirrored 불가 시)**
+
+WSL2 기본 NAT 모드에서는 WSL 이 자체 가상 IP 를 가져, 다른 PC→WindowsIP:8099 가
+자동 전달되지 않는다. 이때만 아래 헬퍼로 포워딩 룰을 건다(관리자 PowerShell):
+```powershell
+powershell -ExecutionPolicy Bypass -File windows\wsl-portproxy.ps1 -Port 8099
+```
+- `WindowsIP:8099 → WSL_IP:8099` 포워딩 + 방화벽 인바운드 허용 자동 설정.
+- WSL 재기동 시 WSL IP 가 바뀌므로 부팅/WSL 재시작 후 재실행 필요(작업 스케줄러 "로그온 시" 등록 권장). 해제: `... -Remove`.
+
+접속 주소(공통):
 ```
 http://<Windows 호스트 고정 IP>:8099/
 ```
 
-> **방화벽 전제:** 인바운드 8099/TCP · 사설망(Private) 규칙은 허용된 상태로 가정합니다(요구사항 C4). portproxy 헬퍼는 규칙을 자동 추가합니다.
+> **방화벽 전제:** 인바운드 8099/TCP · 사설망(Private) 규칙은 허용 상태로 가정(요구사항 C4).
+> mirrored 모드에서도 인바운드가 막히면 접속 불가하므로 방화벽 허용은 유지되어야 합니다.
 
 ---
 

@@ -30,7 +30,7 @@
 ### LAN 서비스 (사내 인트라넷)
 - 서버는 `0.0.0.0:8099` 바인딩. **HTTP MVP**(HTTPS 향후), **무인증 MVP**.
 - Linux 실물/VM: 서버 고정 IP로 바로 접속.
-- **Windows+WSL2(NAT)**: 다른 PC 노출에 연결 룰 필요 → `windows/wsl-portproxy.ps1`(portproxy, Win10/11) 또는 `.wslconfig networkingMode=mirrored`(Win11 최신). 상세: `linux/README-WSL2.md` §3.
+- **Windows+WSL2**: 현 운영 환경은 **`.wslconfig networkingMode=mirrored` 채택** → WSL 이 Windows 호스트 IP 직결 → 0.0.0.0:8099 바인드만으로 다른 PC 가 `WindowsIP:8099` 직접 접속(**portproxy 불필요**). NAT 모드용 대안은 `windows/wsl-portproxy.ps1`. 상세: `linux/README-WSL2.md` §3. 참고: SSH 도 동일하게 호스트 IP 로 접속(기존 2222 portproxy 불필요해짐).
 
 ---
 
