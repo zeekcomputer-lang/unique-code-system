@@ -18,19 +18,22 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 class Settings:
     # ── App
     APP_NAME: str = "Unique Code Management System"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "0.4.0"
     DEBUG: bool = os.getenv("UCS_DEBUG", "false").lower() == "true"
 
     # ── HTTP
     HOST: str = os.getenv("UCS_HOST", "0.0.0.0")
-    PORT: int = int(os.getenv("UCS_PORT", "8000"))
+    PORT: int = int(os.getenv("UCS_PORT", "8099"))
 
-    # ── Redis
-    REDIS_URL: str = os.getenv("UCS_REDIS_URL", "redis://localhost:6379/0")
-    REDIS_KEY_QUEUE: str = os.getenv("UCS_REDIS_KEY", "ucs:code:queue")
+    # ── 정적 프론트엔드 (단일 포트 통합 서빙)
+    #    기본: 프로젝트 루트의 frontend/ 를 FastAPI 가 직접 서빙 → UI+API 동일 오리진.
+    SERVE_FRONTEND: bool = os.getenv("UCS_SERVE_FRONTEND", "true").lower() == "true"
+    FRONTEND_DIR: Path = Path(
+        os.getenv("UCS_FRONTEND_DIR", str(BASE_DIR.parent / "frontend"))
+    )
 
-    # ── JSON DB
-    DB_FILE: Path = DATA_DIR / os.getenv("UCS_DB_FILE", "ucs.json")
+    # ── SQLite 단일 SSOT
+    DB_FILE: Path = DATA_DIR / os.getenv("UCS_DB_FILE", "ucs.sqlite3")
 
     # ── 코드 채번 규칙
     EXCLUDED_LETTERS: frozenset[str] = frozenset({"O", "I"})

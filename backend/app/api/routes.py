@@ -9,16 +9,26 @@ API Routes
 - /api/codes/*        : 코드 발급/파기/강제채번/조회/미리보기
 - /api/dashboard      : 대시보드 통계
 - /health             : 헬스 체크
+
+저장소: SQLite 단일 SSOT (app.db.sqlite_db). 모든 상태 전이는 원자적 트랜잭션.
 """
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.db.database import JsonDatabase, get_db
+from app.db.sqlite_db import (
+    CodeAlreadyActive,
+    CodeNotActive,
+    CodeNotFound,
+    QueueEmpty,
+    RequestNotFound,
+    RequestNotPending,
+    SqliteDatabase,
+    get_db,
+)
 from app.models.schemas import (
     CodeRecord,
     CodeStats,
@@ -34,30 +44,29 @@ from app.models.schemas import (
     RequestStats,
     RevokeResponse,
 )
-from app.services.sequence_manager import SequenceManager, get_sequence_manager
 
 
 logger = logging.getLogger(__name__)
 
 
 # ╭───────────────────────────────────────────────────────────╮
-# │ Health                                                    │
+# │ Health                                                     │
 # ╰───────────────────────────────────────────────────────────╯
 health_router = APIRouter(tags=["meta"])
 
 
 @health_router.get("/health", response_model=HealthResponse)
-def health(seq: SequenceManager = Depends(get_sequence_manager)) -> HealthResponse:
-    redis_ok = seq.ping()
+def health(db: SqliteDatabase = Depends(get_db)) -> HealthResponse:
+    ok = db.ping()
     return HealthResponse(
         status="ok",
-        redis=redis_ok,
-        queue_size=seq.queue_size() if redis_ok else 0,
+        redis=ok,                       # 저장소(SQLite) 정상 여부 (스키마 호환 유지)
+        queue_size=db.queue_size() if ok else 0,
     )
 
 
 # ╭───────────────────────────────────────────────────────────╮
-# │ Requests (채번 의뢰서)                                    │
+# │ Requests (채번 의뢰서)                                     │
 # ╰───────────────────────────────────────────────────────────╯
 requests_router = APIRouter(prefix="/api/requests", tags=["requests"])
 
@@ -70,7 +79,7 @@ requests_router = APIRouter(prefix="/api/requests", tags=["requests"])
 )
 def create_request(
     payload: CreateRequestPayload,
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> RequestRecord:
     rec = db.create_request(
         requester=payload.requester,
@@ -91,7 +100,7 @@ def list_requests(
         default=None, alias="status",
         description="PENDING | APPROVED | REJECTED",
     ),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> List[RequestRecord]:
     if status_filter and status_filter not in {"PENDING", "APPROVED", "REJECTED"}:
         raise HTTPException(status_code=400, detail="유효하지 않은 status 값")
@@ -103,7 +112,7 @@ def list_requests(
     response_model=RequestRecord,
     summary="채번 의뢰 단건 조회",
 )
-def get_request(req_id: str, db: JsonDatabase = Depends(get_db)) -> RequestRecord:
+def get_request(req_id: str, db: SqliteDatabase = Depends(get_db)) -> RequestRecord:
     rec = db.get_request(req_id)
     if not rec:
         raise HTTPException(status_code=404, detail="의뢰서를 찾을 수 없습니다")
@@ -127,7 +136,7 @@ def list_codes(
         default=None, alias="status",
         description="WAITING | ACTIVE | REVOKED",
     ),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> List[CodeRecord]:
     if status_filter and status_filter not in {"WAITING", "ACTIVE", "REVOKED"}:
         raise HTTPException(status_code=400, detail="유효하지 않은 status 값")
@@ -141,13 +150,9 @@ def list_codes(
 )
 def peek_next(
     n: int = Query(default=10, ge=1, le=100),
-    seq: SequenceManager = Depends(get_sequence_manager),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> PeekResponse:
-    items: List[CodeRecord] = []
-    for code, score in seq.peek_next(n):
-        rec = db.get_code(code)
-        items.append(CodeRecord(**rec) if rec else CodeRecord(code=code, score=score, status="WAITING"))
+    items = [CodeRecord(**r) for r in db.peek_next(n)]
     return PeekResponse(next=items)
 
 
@@ -156,12 +161,9 @@ def peek_next(
     response_model=CodeRecord,
     summary="코드 단건 조회 (base 코드 또는 full 코드)",
 )
-def get_code(code: str, db: JsonDatabase = Depends(get_db)) -> CodeRecord:
+def get_code(code: str, db: SqliteDatabase = Depends(get_db)) -> CodeRecord:
     key = code.upper()
-    rec = db.get_code(key)
-    if not rec:
-        # full_code(예: DEV-A1)로도 조회
-        rec = db.find_code_by_full(key)
+    rec = db.get_code(key) or db.find_code_by_full(key)
     if not rec:
         raise HTTPException(status_code=404, detail="코드를 찾을 수 없습니다")
     return CodeRecord(**rec)
@@ -177,54 +179,25 @@ def get_code(code: str, db: JsonDatabase = Depends(get_db)) -> CodeRecord:
 def issue_by_request(
     req_id: str,
     payload: IssueByRequestPayload,
-    seq: SequenceManager = Depends(get_sequence_manager),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> IssueResponse:
     """
-    1) 의뢰서 PENDING 검증
-    2) Redis ZPOPMIN으로 2자리 base 코드 추출 (원자성)
-    3) DB에 ACTIVE 기록 + 의뢰서 APPROVED 전환
-    4) 실패 시 Redis 큐로 롤백
+    의뢰서 승인 + 대기열 최상단 발급을 **단일 SQLite 트랜잭션**으로 원자 처리.
+    (PENDING 검증 → 최소 score WAITING 확보 → ACTIVE 전환 → 의뢰서 APPROVED)
     """
-    req = db.get_request(req_id)
-    if not req:
-        raise HTTPException(status_code=404, detail="의뢰서를 찾을 수 없습니다")
-    if req["status"] != "PENDING":
-        raise HTTPException(
-            status_code=409,
-            detail=f"PENDING 상태가 아닙니다 (현재: {req['status']})",
-        )
-
-    popped = seq.pop_code()
-    if popped is None:
-        raise HTTPException(
-            status_code=409,
-            detail="대기열이 비어 있습니다 (발급 가능 코드 없음)",
-        )
-    base_code, score = popped
-    full_code = f"{payload.prefix}{base_code}"
-
     try:
-        rec = db.mark_issued(
-            base_code,
-            prefix=payload.prefix,
-            request_id=req_id,
-            issued_to=payload.issued_to,
-            force=False,
-        )
-        db.approve_request(
+        rec = db.issue_next_for_request(
             req_id,
-            base_code=base_code,
-            full_code=full_code,
+            prefix=payload.prefix,
+            issued_to=payload.issued_to,
             approver=payload.approver,
         )
-    except Exception as e:
-        logger.exception("발급 처리 실패 → 큐 롤백 시도 (%s)", base_code)
-        try:
-            seq.return_code(base_code)
-        except Exception:
-            logger.exception("큐 롤백도 실패: %s", base_code)
-        raise HTTPException(status_code=500, detail=f"발급 처리 중 오류: {e}")
+    except RequestNotFound:
+        raise HTTPException(status_code=404, detail="의뢰서를 찾을 수 없습니다")
+    except RequestNotPending as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except QueueEmpty as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
     return IssueResponse(
         request_id=req_id,
@@ -247,76 +220,41 @@ def issue_by_request(
 )
 def force_issue(
     payload: ForceIssuePayload,
-    seq: SequenceManager = Depends(get_sequence_manager),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> IssueResponse:
     """
-    관리자 권한으로 큐 상태를 무시하고 특정 base 코드를 강제 할당한다.
+    관리자 권한으로 큐 상태를 무시하고 특정 base 코드를 강제 할당한다. (원자적)
 
     제약:
       - base_code는 432개 유효 시드에 포함되어야 한다.
       - 현재 ACTIVE 상태인 코드는 강제 할당 불가 (중복 발급 방지).
     """
-    base_code = payload.base_code
-    rec = db.get_code(base_code)
-    if rec is None:
-        raise HTTPException(status_code=404, detail=f"존재하지 않는 base 코드: {base_code}")
-    if rec["status"] == "ACTIVE":
-        raise HTTPException(
-            status_code=409,
-            detail=f"이미 ACTIVE 상태입니다: {rec.get('full_code') or base_code}",
-        )
-
-    # 의뢰서 연결 검증(선택)
-    req_id = payload.request_id
-    if req_id:
-        req = db.get_request(req_id)
-        if not req:
-            raise HTTPException(status_code=404, detail=f"존재하지 않는 의뢰서: {req_id}")
-        if req["status"] != "PENDING":
-            raise HTTPException(
-                status_code=409,
-                detail=f"PENDING 상태가 아닌 의뢰서: {req_id} ({req['status']})",
-            )
-
-    # Redis에서 강제 제거 (없어도 OK)
     try:
-        seq.force_pop(base_code)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    full_code = f"{payload.prefix}{base_code}"
-
-    try:
-        issued = db.mark_issued(
-            base_code,
+        issued = db.force_issue(
+            base_code=payload.base_code,
             prefix=payload.prefix,
-            request_id=req_id,
+            request_id=payload.request_id,
             issued_to=payload.issued_to,
-            force=True,
+            approver=payload.approver,
+            reason=payload.reason,
         )
-        if req_id:
-            db.approve_request(
-                req_id,
-                base_code=base_code,
-                full_code=full_code,
-                approver=payload.approver,
-            )
-    except Exception as e:
-        logger.exception("강제 채번 DB 기록 실패 → 큐 복원 시도 (%s)", base_code)
-        try:
-            seq.return_code(base_code)
-        except Exception:
-            logger.exception("큐 복원 실패: %s", base_code)
-        raise HTTPException(status_code=500, detail=f"강제 채번 처리 중 오류: {e}")
+    except CodeNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except CodeAlreadyActive as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except RequestNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RequestNotPending as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
     logger.warning(
         "FORCE_ISSUED base=%s prefix=%s full=%s by=%s reason=%s",
-        base_code, payload.prefix, full_code, payload.approver, payload.reason,
+        payload.base_code, payload.prefix, issued["full_code"],
+        payload.approver, payload.reason,
     )
 
     return IssueResponse(
-        request_id=req_id,
+        request_id=payload.request_id,
         base_code=issued["code"],
         full_code=issued["full_code"],
         prefix=issued["prefix"],
@@ -336,47 +274,25 @@ def force_issue(
 def revoke(
     code: str,
     by: Optional[str] = Query(default=None, max_length=128),
-    seq: SequenceManager = Depends(get_sequence_manager),
-    db: JsonDatabase = Depends(get_db),
+    db: SqliteDatabase = Depends(get_db),
 ) -> RevokeResponse:
     """
-    Path Parameter는 base 코드(`A1`) 또는 full 코드(`DEV-A1`) 둘 다 허용한다.
+    Path Parameter는 base 코드(`A1`) 또는 full 코드(`DEVA1`) 둘 다 허용한다.
+    SQLite 에서 status 를 WAITING 으로 되돌리면 score 정렬로 원래 순번에 자동 복귀.
     """
-    key = code.upper()
-    rec = db.get_code(key) or db.find_code_by_full(key)
-    if not rec:
-        raise HTTPException(status_code=404, detail="코드를 찾을 수 없습니다")
-
-    base_code: str = rec["code"]
-    full_code_before: Optional[str] = rec.get("full_code")
-
     try:
-        revoked = db.mark_revoked(base_code, by=by)
-    except ValueError as e:
+        r = db.revoke(code, by=by)
+    except CodeNotFound:
+        raise HTTPException(status_code=404, detail="코드를 찾을 수 없습니다")
+    except CodeNotActive as e:
         raise HTTPException(status_code=409, detail=str(e))
 
-    # 원래 순번으로 큐에 복원
-    try:
-        restored_score = seq.return_code(base_code)
-    except RuntimeError:
-        logger.warning("이미 큐에 존재: %s — DB만 WAITING 동기화", base_code)
-        db.reset_to_waiting(base_code)
-        return RevokeResponse(
-            code=base_code,
-            full_code=full_code_before,
-            score=revoked["score"],
-            revoked_at=revoked["revoked_at"],
-            returned_to_queue=True,
-        )
-
-    db.reset_to_waiting(base_code)
-
     return RevokeResponse(
-        code=base_code,
-        full_code=full_code_before,
-        score=restored_score,
-        revoked_at=revoked["revoked_at"] or datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        returned_to_queue=True,
+        code=r["code"],
+        full_code=r["full_code"],
+        score=r["score"],
+        revoked_at=r["revoked_at"],
+        returned_to_queue=r["returned_to_queue"],
     )
 
 
@@ -391,23 +307,17 @@ dashboard_router = APIRouter(prefix="/api", tags=["dashboard"])
     response_model=DashboardResponse,
     summary="대시보드 통계 (코드/의뢰서/큐 잔여/미리보기)",
 )
-def dashboard(
-    db: JsonDatabase = Depends(get_db),
-    seq: SequenceManager = Depends(get_sequence_manager),
-) -> DashboardResponse:
+def dashboard(db: SqliteDatabase = Depends(get_db)) -> DashboardResponse:
     code_counts = db.stats()
     req_counts = db.stats_requests()
-    redis_ok = seq.ping()
-    queue_size = seq.queue_size() if redis_ok else 0
+    storage_ok = db.ping()
+    queue_size = db.queue_size()
 
     total = code_counts.get("TOTAL", 0)
     active = code_counts.get("ACTIVE", 0)
     usage_pct = round((active / total * 100), 1) if total else 0.0
 
-    preview = (
-        [NextPreviewItem(code=c, score=s) for c, s in seq.peek_next(5)]
-        if redis_ok else []
-    )
+    preview = [NextPreviewItem(code=r["code"], score=r["score"]) for r in db.peek_next(5)]
 
     return DashboardResponse(
         codes=CodeStats(
@@ -425,7 +335,7 @@ def dashboard(
             rejected=req_counts.get("REJECTED", 0),
         ),
         next_preview=preview,
-        redis_ok=redis_ok,
+        redis_ok=storage_ok,            # 저장소 정상 여부 (스키마 호환 유지)
     )
 
 

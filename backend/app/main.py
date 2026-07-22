@@ -1,8 +1,10 @@
 """
 FastAPI Entry Point
 -------------------
-- 앱 부팅 시 JSON DB 초기화 + Redis ZSET 시드(bootstrap)
-- 통합 라우터 마운트
+- 앱 부팅 시 SQLite 단일 SSOT 초기화(스키마 + 432 코드 시드)
+- 통합 API 라우터 마운트
+- 단일 포트(기본 8099)에서 정적 프론트엔드(frontend/)까지 함께 서빙
+  → UI 와 API 가 동일 오리진 → 클라이언트는 상대경로(`UCS_API_BASE=""`)로 접근
 """
 from __future__ import annotations
 
@@ -11,11 +13,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import get_routers
 from app.core.config import settings
-from app.db.database import get_db
-from app.services.sequence_manager import get_sequence_manager
+from app.db.sqlite_db import get_db
 
 
 logging.basicConfig(
@@ -29,19 +31,12 @@ logger = logging.getLogger("ucs")
 async def lifespan(app: FastAPI):
     # ── Startup ───────────────────────────────────────────────
     logger.info("Starting %s v%s", settings.APP_NAME, settings.APP_VERSION)
-
     db = get_db()
-    logger.info("JSON DB ready: codes=%s requests=%s", db.stats(), db.stats_requests())
-
-    seq = get_sequence_manager()
-    if not seq.ping():
-        logger.error("Redis 연결 실패: %s", settings.REDIS_URL)
-    else:
-        size = seq.bootstrap(force=False)
-        logger.info("Redis queue ready: size=%d (key=%s)", size, settings.REDIS_KEY_QUEUE)
-
+    logger.info(
+        "SQLite DB ready (%s): codes=%s requests=%s",
+        settings.DB_FILE, db.stats(), db.stats_requests(),
+    )
     yield
-
     logger.info("Shutting down %s", settings.APP_NAME)
 
 
@@ -60,8 +55,8 @@ app.add_middleware(
 )
 
 
-@app.get("/", tags=["meta"])
-def root() -> dict:
+@app.get("/api", tags=["meta"])
+def api_info() -> dict:
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
@@ -69,9 +64,23 @@ def root() -> dict:
     }
 
 
-# 통합 라우터 등록
+# 통합 API 라우터 등록 (정적 마운트보다 먼저 → 경로 우선순위 확보)
 for r in get_routers():
     app.include_router(r)
+
+
+# 정적 프론트엔드 서빙 (단일 포트 통합). API/문서 라우트 등록 이후 "/" 에 마운트.
+if settings.SERVE_FRONTEND and settings.FRONTEND_DIR.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(settings.FRONTEND_DIR), html=True),
+        name="frontend",
+    )
+    logger.info("Serving frontend from %s at '/'", settings.FRONTEND_DIR)
+else:
+    logger.warning(
+        "Frontend 정적 서빙 비활성(경로 없음/off): %s", settings.FRONTEND_DIR
+    )
 
 
 if __name__ == "__main__":

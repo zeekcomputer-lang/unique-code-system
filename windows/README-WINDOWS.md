@@ -1,168 +1,102 @@
-# 🪟 Windows 10 로컬 구동 가이드
+# 🪟 Windows 네이티브 운영 가이드
 
-> 본 가이드는 **Windows 10** 환경에서 별도 도커/WSL 없이 로컬 PC로 시스템을 띄우는 절차입니다.
+> **단일 포트(기본 8099)** 에서 UI + API 를 함께 서빙합니다.
+> 저장소는 **SQLite 단일 파일**, **Redis 등 외부 서비스 불필요.**
+> WSL2 트랙은 [`../linux/README-WSL2.md`](../linux/README-WSL2.md) 참조.
 
 ---
 
 ## 0. 사전 준비
 
-1. **Python 3.10 이상** 설치
-   - 다운로드: <https://www.python.org/downloads/>
-   - 설치 시 **"Add Python to PATH" 체크 필수**
-2. (선택) **Git** 또는 압축 풀린 프로젝트 폴더
-3. 최신 브라우저 (Chrome / Edge 권장)
-4. (선택, 운영용) Redis for Windows
-   - <https://github.com/tporadowski/redis/releases> 또는 WSL의 redis-server
-   - 미설치 시 **fakeredis 모드**로 동작 (개발/데모용)
+1. **Python 3.10 이상** — <https://www.python.org/downloads/> (설치 시 **"Add Python to PATH" 체크**)
+2. 최신 브라우저 (Chrome / Edge)
 
 ---
 
-## 1. 폴더 준비
-
-프로젝트 전체를 임의의 경로에 배치합니다. 권장 경로:
-
-```
-C:\projects\unique-code-system\
-├── backend\
-├── frontend\
-├── windows\
-└── ...
-```
-
----
-
-## 2. 초기 설정 (1회만)
-
-`windows\setup.bat` 더블클릭 또는 명령 프롬프트 실행:
+## 1. 설치 (1회)
 
 ```cmd
 cd C:\projects\unique-code-system
 windows\setup.bat
 ```
-
-수행 내용:
-- Python 버전 확인
-- `.venv\` 가상환경 생성
-- `backend\requirements.txt` + `fakeredis` 설치
-- `backend\data\` 폴더 생성
+- `.venv` 생성 + `backend\requirements.txt` 설치 + `backend\data\` 생성.
 
 ---
 
-## 3. 실행
-
-### 3-1. 한 번에 띄우기 (권장)
+## 2. 기동 / 종료
 
 ```cmd
-windows\start-all.bat
+windows\start.bat        REM 단일 서버(:8099) 콘솔 기동
+windows\start-all.bat    REM 서버 기동 + 브라우저 자동 오픈
+windows\stop-all.bat     REM 8099 포트 프로세스 종료
 ```
 
-→ 백엔드(:8099)와 프론트엔드(:8989) 콘솔 창이 별도로 열리고, 자동으로 브라우저가 `http://localhost:8989/index.html` 을 엽니다.
-
-### 3-2. 개별 기동
-
+포트 변경:
 ```cmd
-windows\start-backend.bat        REM fakeredis 모드 (기본)
-windows\start-frontend.bat       REM 정적 서버
-```
-
-### 3-3. 실 Redis로 기동
-
-먼저 Redis 서버를 띄우고:
-
-```cmd
-set USE_REAL_REDIS=1
-set UCS_REDIS_URL=redis://localhost:6379/0
-windows\start-backend.bat
+set UCS_PORT=9000
+windows\start.bat
 ```
 
 ---
 
-## 4. 종료
-
-각 콘솔 창에서 `Ctrl + C` 또는 X 버튼.
-
-전부 한 번에 정리:
-
-```cmd
-windows\stop-all.bat
-```
-
-→ 8099/8989 포트를 점유한 python.exe 프로세스를 `taskkill` 로 종료.
-
----
-
-## 5. 접속 URL
+## 3. 접속
 
 | URL | 화면 |
 |-----|------|
-| <http://localhost:8989/index.html> | 메인 분기 |
-| <http://localhost:8989/request.html> | 채번 의뢰 |
-| <http://localhost:8989/admin.html> | Admin 콘솔 |
-| <http://localhost:8989/dashboard.html> | 대시보드 |
-| <http://localhost:8099/docs> | Swagger UI (OpenAPI) |
-| <http://localhost:8099/health> | 헬스 체크 |
+| `http://localhost:8099/` | 메인 |
+| `http://localhost:8099/dashboard.html` | 대시보드 |
+| `http://localhost:8099/docs` | Swagger(OpenAPI) |
+| `http://localhost:8099/health` | 헬스 체크 |
+
+프론트는 상대경로(`UCS_API_BASE=""`)로 호출하므로 **접속 IP 무관 자동 동작**.
+
+---
+
+## 4. 🌐 같은 통신망(LAN) 다른 PC 에서 접속
+
+서버가 `0.0.0.0:8099` 로 바인딩되므로, **Windows 네이티브 실행 시** 다른 PC 는
+이 PC 의 고정 IP 로 바로 접속합니다:
+
+```
+http://<이 PC 고정 IP>:8099/
+```
+
+- 방화벽 인바운드 8099/TCP(사설망) 허용 전제(요구사항 C4).
+- 사내 안내문에는 고정 IP 를 직접 기입해 공유하면 됩니다(코드 하드코딩 불필요).
+
+> ⚠️ **WSL2 안에서 띄운 경우**는 네트워킹이 다릅니다(NAT). 그때는
+> [`../linux/README-WSL2.md`](../linux/README-WSL2.md) §3 의 portproxy/mirrored 를 따르세요.
+
+---
+
+## 5. 데이터 / 백업
+
+| 항목 | 경로 |
+|------|------|
+| SQLite DB | `backend\data\ucs.sqlite3` (+ `-wal`, `-shm`) |
+| 가상환경 | `.venv\` |
+
+초기화: 서버 종료 후 `backend\data\ucs.sqlite3*` 삭제 → 재기동 시 432개 자동 시드.
 
 ---
 
 ## 6. 자주 발생하는 문제
 
-### ❌ "python 명령을 찾을 수 없습니다"
-PATH에 등록되지 않은 경우. Python 재설치 시 **Add Python to PATH** 체크 후 PC 재로그인.
-
-### ❌ "포트 8099/8989 이 이미 사용 중"
-```cmd
-windows\stop-all.bat
-```
-또는 작업 관리자에서 해당 python.exe 종료.
-
-### ❌ pip 설치 실패 (TLS / 회사 프록시)
-```cmd
-.venv\Scripts\activate.bat
-pip install --proxy http://USER:PASS@proxy.company.com:8080 -r backend\requirements.txt
-```
-
-### ❌ 한글 깨짐 (CMD)
-콘솔 코드페이지를 UTF-8로:
-```cmd
-chcp 65001
-```
-
-### ❌ 방화벽 차단
-사설 네트워크 사용 시 Windows Defender 방화벽이 python.exe의 인바운드를 차단할 수 있음. 첫 실행 시 **허용** 선택. 외부 PC에서 접근 필요 시 인바운드 규칙으로 8989/TCP 허용.
+- **python 없음:** PATH 미등록. 재설치 시 "Add Python to PATH" 체크.
+- **포트 점유:** `windows\stop-all.bat` 또는 `set UCS_PORT=9000`.
+- **pip 프록시:** `.venv\Scripts\activate.bat` 후 `pip install --proxy http://USER:***@proxy:8080 -r backend\requirements.txt`.
+- **CMD 한글 깨짐:** `chcp 65001`.
 
 ---
 
-## 7. 데이터 위치
+## 7. 운영 전환 체크리스트
 
-| 항목 | 경로 |
-|------|------|
-| JSON DB | `backend\data\ucs.json` |
-| 가상환경 | `.venv\` |
-| 백엔드 로그 | 백엔드 콘솔 창 (별도 파일 출력 없음) |
-
-JSON DB를 초기화하려면 백엔드를 종료한 뒤 파일을 삭제하고 다시 기동.
+- [ ] 고정 IP / DHCP 예약 확인
+- [ ] 방화벽 인바운드 8099/TCP 규칙
+- [ ] `backend\data\ucs.sqlite3` 정기 백업 (`.backup` 권장)
+- [ ] 상시 실행: 작업 스케줄러 "로그온 시" `windows\start.bat` 등록
+- [ ] (향후) HTTPS: nginx/caddy 리버스 프록시 TLS 종단
 
 ---
 
-## 8. 운영 전환 시 체크리스트
-
-- [ ] Redis for Windows 또는 외부 Redis 인스턴스 연결 (`USE_REAL_REDIS=1`)
-- [ ] Windows 작업 스케줄러로 백엔드 자동 시작 등록
-- [ ] 외부 노출 시 IIS / nginx 리버스 프록시 앞단 배치
-- [ ] `backend\data\ucs.json` 일/주 단위 백업 작업 등록
-- [ ] 방화벽 인바운드 규칙 명시
-
----
-
-## 9. 디자인 시스템
-
-브라우저에서 직접 확인:
-- 메인 → Admin → 의뢰 승인 모달 (Prefix 입력 + 실시간 미리보기)
-- 코드 테이블 → 파기 버튼 → "결번 복원..." 확인 모달
-- 대시보드 → 시맨틱 컬러 카드 + 사용률 게이지
-
-세부 규칙: `..\ui-design-system.md`
-
----
-
-_Windows 10 (1809+) / Windows 11 동작 확인_
+_Windows 네이티브 트랙 · 단일 포트 + SQLite SSOT_

@@ -12,6 +12,8 @@ env/
 
 # Data (runtime)
 backend/data/*.json
+backend/data/*.sqlite3
+backend/data/*.sqlite3-*
 !backend/data/.gitkeep
 
 # IDE
@@ -28,6 +30,11 @@ desktop.ini
 # Env
 .env
 .env.local
+
+# WSL2 트랙 (Linux venv/런타임)
+.venv-wsl/
+*.pid
+linux/logs/
 
 # Logs
 *.log

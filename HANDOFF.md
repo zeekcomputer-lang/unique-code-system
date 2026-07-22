@@ -1,9 +1,38 @@
 # 🔁 HANDOFF — 유니크 코드 통합 관리 시스템
 
 > **인계 대상**: 다음 개발/운영 담당자
-> **최종 갱신**: 2026-05-12 (v0.3)
-> **현재 단계**: MVP 4단계 완료 + 운영 피드백 3건 반영 · 로컬 데모 가능 · 운영 전환 전 단계
+> **최종 갱신**: 2026-07-22 (v0.4)
+> **현재 단계**: SQLite 단일 SSOT 전환 + 단일 포트 통합 + Windows/WSL2 2-Track + LAN 서비스 · 전 시나리오+동시성 검증 완료
 > **GitHub**: <https://github.com/zeekcomputer-lang/unique-code-system>
+
+---
+
+## ★ v0.4 핵심 변경 (2026-07-22) — 먼저 읽으세요
+
+아키텍처가 크게 바뀌었습니다. 이전 v0.3 설명 중 Redis/JSON/2포트 관련 내용은 **폐기**됩니다.
+
+| 항목 | v0.3 (구) | **v0.4 (현)** |
+|------|-----------|----------------|
+| 저장소 | JSON 파일 + Redis ZSET | **SQLite 단일 SSOT** (`backend/data/ucs.sqlite3`, WAL) |
+| 큐 | Redis `ZPOPMIN`/`ZADD` | `codes.status='WAITING'` + 불변 `score` 정렬 |
+| 원자성 | Redis 명령 | `BEGIN IMMEDIATE` 트랜잭션 (동시발급 중복 0, 20병렬 검증) |
+| 포트 | 백 8099 + 프론트 8989 (2포트) | **단일 8099** (FastAPI 가 `frontend/` StaticFiles 마운트) |
+| 프론트 API base | `http://localhost:8099` 하드코딩 | **`UCS_API_BASE=""`** (상대경로, 접속 IP 무관) |
+| 외부 의존 | Redis 필요 | **0** (SQLite만) → git clone 즉시 기동 |
+| 트랙 | Windows 단일 | **Windows + WSL2 2-Track** |
+
+**삭제된 파일**: `backend/app/services/sequence_manager.py`, `backend/app/db/database.py`, `backend/run_with_fakeredis.py`, `windows/start-backend.bat`, `windows/start-frontend.bat`.
+**신규 파일**: `backend/app/db/sqlite_db.py`, `linux/*` (setup/start/stop/status.sh, systemd, install-systemd.sh, README-WSL2.md), `windows/start.bat`, `windows/wsl-portproxy.ps1`.
+
+### 배포 모델 (중요)
+개발환경(WSL2 등)≠운영환경. **운영 서버에서 git clone/pull → setup → start.** 머신 고유값(IP·경로) 하드코딩 금지, 모두 env/문서로 주입.
+
+### LAN 서비스 (사내 인트라넷)
+- 서버는 `0.0.0.0:8099` 바인딩. **HTTP MVP**(HTTPS 향후), **무인증 MVP**.
+- Linux 실물/VM: 서버 고정 IP로 바로 접속.
+- **Windows+WSL2(NAT)**: 다른 PC 노출에 연결 룰 필요 → `windows/wsl-portproxy.ps1`(portproxy, Win10/11) 또는 `.wslconfig networkingMode=mirrored`(Win11 최신). 상세: `linux/README-WSL2.md` §3.
+
+---
 
 ---
 
@@ -11,6 +40,7 @@
 
 | 버전 | SHA | 내용 |
 |------|-----|------|
+| v0.4 | (본 커밋) | **SQLite 단일 SSOT** 전환(Redis/JSON 제거) + **단일 포트 통합**(8099 UI+API) + **Windows/WSL2 2-Track** + **LAN 서비스**(0.0.0.0, portproxy 헬퍼) + 동시발급 원자성(BEGIN IMMEDIATE) |
 | v0.3 | `17a6898` | Prefix 정책 완화: 영문 → **영문+숫자 1~16자** (자동 대문자) |
 | v0.2 | `365242d` | base 코드 입력에 숫자 허용(`#frcBase` 분리), full_code 포맷 **`{prefix}{base}`** (하이픈 제거) |
 | v0.2 | `c0515be` | 기본 포트 변경: 백엔드 `8000→8099`, 프론트 `8080→8989` |

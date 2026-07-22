@@ -1,0 +1,17 @@
+[Unit]
+Description=Unique Code Management System (single-port UI+API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# __ROOT__ / __PORT__ 는 install-systemd.sh 가 실제 경로/포트로 치환합니다.
+WorkingDirectory=__ROOT__/backend
+Environment=UCS_HOST=0.0.0.0
+Environment=UCS_PORT=__PORT__
+ExecStart=__ROOT__/.venv-wsl/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port __PORT__ --workers 1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
